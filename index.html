@@ -601,7 +601,7 @@ arslanLoad();
       <div class="si-field"><label>Discount %</label><input type="number" step="0.01" id="ssDisc"></div>
       <div class="si-field"><label>GST %</label><input type="number" step="0.01" id="ssGst"></div>
       <div class="si-field"><label>Amount</label><input type="text" id="ssAmt" readonly></div>
-      <div class="si-field"><label>&nbsp;</label><button type="button" class="btn in" id="ssAdd">&#10003; Add</button></div>
+      <div class="si-field"><label>&nbsp;</label><button type="button" class="btn in" id="ssAdd">&#10003; Add</button> <button type="button" class="btn in" id="ssSave2">&#128190; Save</button></div>
     </div>
     <p style="margin:6px 0"><button type="button" class="btn ghost" id="ssLoadBooks">Load class books</button> &nbsp; <a href="#" id="ssDelAll" style="color:#00008b;font-weight:600">Delete All</a></p>
     <div class="ledger-wrap"><div class="table-scroll"><table>
@@ -1866,14 +1866,14 @@ function ssReset(){
 function ssSave(){
   if(!ss.rows.length) return showToast('Add at least one item.');
   if(!$('ssSid').value.trim()||!$('ssName').value) return showToast('Pehle student ka naam ya ID select karen.');
-  const need={}; ss.rows.forEach(r=>need[r.code]=(need[r.code]||0)+r.qty);
+  const need={}; ss.rows.forEach(r=>{if(!r.manual) need[r.code]=(need[r.code]||0)+r.qty;});
   for(const c in need){const it=item(c),back=editSS?editSS.rows.filter(o=>o.code===c).reduce((a,o)=>a+o.qty,0):0; if(!it||need[c]>it.qty+back) return showToast('Not enough stock for '+(it?it.name:c));}
   let no;
   if(editSS){
     no=editSS.no;
     editSS.rows.forEach(o=>{const it=item(o.code); if(it){it.qty+=o.qty;state.tx.push({itemId:it.id,itemName:it.name,type:'in',qty:o.qty,reason:'Edit of '+no+' (old sale reversed)',at:Date.now()});}});
   }else{const n=(S.n.SS||0)+1; S.n.SS=n; const d=new Date(); no='SS'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+String(n).padStart(4,'0');}
-  ss.rows.forEach(r=>{const it=item(r.code); it.qty-=r.qty; state.tx.push({itemId:it.id,itemName:it.name,type:'out',qty:r.qty,reason:'Student Sale '+no+' - '+$('ssName').value,at:dateToTs($('ssDate').value)});});
+  ss.rows.forEach(r=>{if(r.manual) return; const it=item(r.code); it.qty-=r.qty; state.tx.push({itemId:it.id,itemName:it.name,type:'out',qty:r.qty,reason:'Student Sale '+no+' - '+$('ssName').value,at:dateToTs($('ssDate').value)});});
   const rec=ssRec(no);
   if(editSS) Object.assign(editSS,rec,{upd:Date.now()}); else S.ss.push(Object.assign(rec,{id:Date.now()+'',created:Date.now(),upd:Date.now()}));
   saveState(); sv(); renderAll(); ssReset(); ssList(); showToast(no+' saved.');
@@ -2066,14 +2066,23 @@ $('siTo').addEventListener('change',()=>{
 });
 cbFillSelects(); cbDraw();
 $('ssAdd').onclick=()=>{
-  const it=item($('ssCode').value); if(!it) return showToast('Enter a valid item code.');
+  const code=$('ssCode').value.trim(), desc=$('ssDesc').value.trim();
+  let it=code?item(code):null;
+  if(!it&&desc){const v=desc.toLowerCase(); it=state.items.find(x=>x.name.toLowerCase()===v)||null;}
   const q=parseFloat($('ssQty').value)||0; if(q<=0) return showToast('Enter quantity.');
-  const back=editSS?editSS.rows.filter(o=>o.code===it.code).reduce((a,o)=>a+o.qty,0):0, used=ss.rows.filter(o=>o.code===it.code).reduce((a,o)=>a+o.qty,0);
-  if(used+q>it.qty+back) return showToast('Only '+fmtNum(it.qty+back-used)+' available for '+it.name);
-  ss.rows.push({kind:$('ssKind').value,code:it.code,name:$('ssDesc').value.trim()||it.name,unit:$('ssUnit').value.trim()||it.unit,qty:q,avg:it.rate,rate:parseFloat($('ssRate').value)||0,disc:parseFloat($('ssDisc').value)||0,gst:parseFloat($('ssGst').value)||0});
+  const rate=parseFloat($('ssRate').value)||0, disc=parseFloat($('ssDisc').value)||0, gst=parseFloat($('ssGst').value)||0;
+  if(it){
+    const back=editSS?editSS.rows.filter(o=>o.code===it.code).reduce((a,o)=>a+o.qty,0):0, used=ss.rows.filter(o=>o.code===it.code).reduce((a,o)=>a+o.qty,0);
+    if(used+q>it.qty+back) return showToast('Only '+fmtNum(it.qty+back-used)+' available for '+it.name);
+    ss.rows.push({kind:$('ssKind').value,code:it.code,name:desc||it.name,unit:$('ssUnit').value.trim()||it.unit,qty:q,avg:it.rate,rate,disc,gst});
+  }else{
+    /* Item Code / Description / Unit optional: manual row, no stock deduction */
+    ss.rows.push({kind:$('ssKind').value,code:code,name:desc,unit:$('ssUnit').value.trim(),qty:q,avg:0,rate,disc,gst,manual:true});
+  }
   ['ssCode','ssDesc','ssUnit','ssAv','ssQty','ssAvg','ssRate','ssDisc','ssGst','ssAmt'].forEach(i=>$(i).value='');
   ssDraw(); $('ssCode').focus();
 };
+$('ssSave2').onclick=()=>ssSave();
 $('ssRows').addEventListener('click',e=>{const b=e.target.closest('[data-ssdel]'); if(b){ss.rows.splice(+b.dataset.ssdel,1);ssDraw();}});
 $('ssCmAdd').onclick=()=>{
   const t=$('ssCm').value.trim(); if(!t) return;
