@@ -261,6 +261,8 @@
     .arslan-wm-main{display:flex;position:fixed;inset:0;z-index:0;align-items:center;justify-content:center;pointer-events:none;}
     .arslan-wm-main img{width:62%;max-width:520px;opacity:.07;border-radius:50%;}
     .app{position:relative;z-index:1;}
+    .table-scroll{overflow:visible !important;}
+    #rOut th,#rOut td{padding:4px 6px !important;font-size:11px !important;}
   }
 </style>
 <script>
@@ -528,20 +530,42 @@ arslanLoad();
       <button class="btn ghost" id="ssRefresh" type="button">Refresh / New</button>
       <button class="btn ghost" id="ssList" type="button">List</button>
       <button class="btn ghost" id="ssPrint" type="button">Print</button>
+      <button class="btn in" id="ssRepBtn" type="button">Books &amp; Copies Report</button>
     </div>
+    <details id="srPanel" style="margin:4px 0 12px;background:rgba(255,253,248,.7);border:1px solid var(--rule);padding:8px 12px">
+      <summary style="cursor:pointer;font-weight:600">Books &amp; Copies Reports &mdash; kis class ko kitni books aur copies di</summary>
+      <div class="toolbar" style="margin-top:10px;flex-wrap:wrap">
+        <select id="srWhat"><option value="both">Books + Copies (alag alag)</option><option value="book">Sirf Books</option><option value="copy">Sirf Copies</option></select>
+        <select id="srLay"><option value="list">List (class ke andar items)</option><option value="matrix">Table (item &times; class)</option></select>
+        <select id="srSrc"><option value="ss">Student Sale</option><option value="si">Store Issue (student books)</option><option value="both">Both</option></select>
+        <select id="srCls"></select>
+        <span class="note" style="margin:0">From</span><input type="date" id="srFrom">
+        <span class="note" style="margin:0">To</span><input type="date" id="srTo">
+        <button class="btn" id="srRun" type="button">Run</button>
+        <button class="btn ghost" id="srPrint" type="button">Print</button>
+        <button class="btn ghost" id="srCsv" type="button">CSV</button>
+      </div>
+      <div id="srOut"></div>
+    </details>
     <details id="cbPanel" style="margin:4px 0 12px;background:rgba(255,253,248,.7);border:1px solid var(--rule);padding:8px 12px">
       <summary style="cursor:pointer;font-weight:600">Class Book Sets &mdash; har class ki books ek hi bar add karen</summary>
       <div class="si-header" style="margin-top:10px">
         <div class="si-field"><label>Class</label><select id="cbClass"></select></div>
+        <div class="si-field"><label>Type</label><select id="cbKind"><option value="book">Book</option><option value="copy">Copy</option></select></div>
         <div class="si-field"><label>Item Code</label><input type="text" id="cbCode" list="itemCodeList"></div>
-        <div class="si-field"><label>Book / Description</label><input type="text" id="cbDesc" list="itemNameList"></div>
+        <div class="si-field"><label>Book / Copy name</label><input type="text" id="cbDesc" list="itemNameList"></div>
         <div class="si-field"><label>Qty</label><input type="number" id="cbQty" min="1" step="1" value="1" style="width:80px"></div>
         <div class="si-field"><label>&nbsp;</label><button type="button" class="btn in" id="cbAdd">&#10003; Add to class</button></div>
         <div class="si-field"><label>Copy books from class</label><div style="display:flex;gap:6px"><select id="cbFrom"></select><button type="button" class="btn ghost" id="cbCopy">Copy</button></div></div>
       </div>
+      <h4 style="margin:12px 0 4px">Books</h4>
       <div class="ledger-wrap"><div class="table-scroll"><table>
-        <thead><tr><th>Sr</th><th>Item Code</th><th>Book</th><th>Unit</th><th>Qty</th><th></th></tr></thead>
+        <thead><tr><th>Sr</th><th>Item Code</th><th>Book</th><th>Unit</th><th>In Hand</th><th>Qty</th><th></th></tr></thead>
         <tbody id="cbRows"></tbody></table></div></div>
+      <h4 style="margin:12px 0 4px">Copies (Notebooks)</h4>
+      <div class="ledger-wrap"><div class="table-scroll"><table>
+        <thead><tr><th>Sr</th><th>Item Code</th><th>Copy</th><th>Unit</th><th>In Hand</th><th>Qty</th><th></th></tr></thead>
+        <tbody id="cbRows2"></tbody></table></div></div>
       <p class="note" style="margin:6px 0 0">Class select karen, books add karen. Phir Student Sale ya Store Issue ma student ka naam likhte hi us class ki sari books khud a jayengi; jo nahi chahiye unhe &times; se delete karen.</p>
     </details>
     <div id="ssListPanel" style="display:none">
@@ -569,6 +593,7 @@ arslanLoad();
       <div class="si-field"><label>Item Code</label><input type="text" id="ssCode" list="itemCodeList"></div>
       <div class="si-field"><label>Description</label><input type="text" id="ssDesc" list="itemNameList"></div>
       <div class="si-field"><label>Unit</label><input type="text" id="ssUnit"></div>
+      <div class="si-field"><label>Type</label><select id="ssKind"><option value="book">Book</option><option value="copy">Copy</option></select></div>
       <div class="si-field"><label>In Hand</label><input type="text" id="ssAv" readonly></div>
       <div class="si-field"><label>Quantity</label><input type="number" step="0.01" id="ssQty"></div>
       <div class="si-field"><label>Avg. Rate</label><input type="text" id="ssAvg" readonly></div>
@@ -580,8 +605,9 @@ arslanLoad();
     </div>
     <p style="margin:6px 0"><button type="button" class="btn ghost" id="ssLoadBooks">Load class books</button> &nbsp; <a href="#" id="ssDelAll" style="color:#00008b;font-weight:600">Delete All</a></p>
     <div class="ledger-wrap"><div class="table-scroll"><table>
-      <thead><tr><th>Sr No</th><th>Item Code</th><th>Description</th><th>Unit</th><th>Quantity</th><th>Avg. Rate</th><th>Rate</th><th>Discount%</th><th>GST%</th><th>Amount</th><th></th></tr></thead>
+      <thead><tr><th>Sr No</th><th>Item Code</th><th>Description</th><th>Type</th><th>Unit</th><th>In Hand</th><th>Quantity</th><th>Avg. Rate</th><th>Rate</th><th>Discount%</th><th>GST%</th><th>Amount</th><th></th></tr></thead>
       <tbody id="ssRows"></tbody></table></div></div>
+    <p class="note" id="ssKinds" style="margin:6px 0 0"></p>
     <div class="si-header" style="margin-top:12px">
       <div class="si-field" style="flex:2 1 320px"><label>Remarks 1</label><input type="text" id="ssR1"><label>Remarks 2</label><input type="text" id="ssR2"><label>Remarks 3</label><input type="text" id="ssR3"></div>
       <div class="si-field" style="color:#c00;text-align:right;font-family:-apple-system,'Segoe UI',Arial,sans-serif;font-size:.85rem;line-height:1.8">
@@ -1748,6 +1774,8 @@ function runReport(){
   }else if(ty==='issues'){
     title='Store Issue'; h=['SI No','Date','Department','Store','Items','Total'];
     rows=state.issues.filter(d=>inR(d.date)).map(d=>[d.siNo,d.date,d.dept,d.store,d.rows.length,fmtMoney(d.total)]);
+  }else if(ty==='classsum'||ty==='classdetail'||ty==='itemclass'){
+    ({title,h,rows}=classReport(ty,from,to));
   }else if(ty==='ssale'){
     title='Student Sale'; h=['SS No','Date','Student ID','Student Name','Class','Charge','Total'];
     rows=S.ss.filter(d=>inR(d.date)).map(d=>[d.no,d.date,d.sid,d.name,d.cls,d.charge?'Yes':'No',fmtMoney(d.total)]);
@@ -1766,7 +1794,7 @@ function runReport(){
     const t=ty==='grn'?'GRN':'SL'; title=ty==='grn'?'GRN':'Store Sale'; h=['No','Date',T[t].p,'Items','Total'];
     rows=S.docs.filter(d=>d.type===t&&inR(d.date)).map(d=>[d.no,d.date,d.party||'',d.rows.length,fmtMoney(dTot(d))]);
   }
-  lastRep={title,h,rows};
+  lastRep={title,h,rows,wide:h.length>8};
   $('rOut').innerHTML=`<h3 class="sec">${esc(title)}</h3><div class="ledger-wrap"><div class="table-scroll"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}<th style="width:1px"></th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}<td></td></tr>`).join(''):empty(h.length+1,'No data for these filters.')}</tbody></table></div></div>`;
 }
 
@@ -1795,7 +1823,7 @@ $('dSale').onclick=()=>{
 $('dSearch').addEventListener('input',renderDocs); $('dStatus').addEventListener('change',renderDocs);
 $('cAdd').onclick=()=>consForm();
 $('rRun').onclick=runReport; $('rCat').addEventListener('focus',repCats);
-$('rPrint').onclick=()=>window.print();
+$('rPrint').onclick=()=>{let st; if(lastRep&&lastRep.wide){st=document.createElement('style');st.textContent='@page{size:A4 landscape;margin:8mm}';document.head.appendChild(st);} window.print(); if(st) setTimeout(()=>st.remove(),1500);};
 $('rCsv').onclick=()=>{
   if(!lastRep) return showToast('Run a report first.');
   const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';
@@ -1811,12 +1839,13 @@ let ss={rows:[],cm:[]}, editSS=null;
 const ssA=r=>{const a=r.qty*r.rate,d=a*r.disc/100,g=(a-d)*r.gst/100;return {a,d,g,t:a-d+g};};
 function ssTot(){const t={iv:0,ds:0,gs:0,tt:0};ss.rows.forEach(r=>{const x=ssA(r);t.iv+=x.a;t.ds+=x.d;t.gs+=x.g;t.tt+=x.t;});return t;}
 function ssDraw(){
-  $('ssRows').innerHTML=ss.rows.length?ss.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.unit)}</td><td><input type="number" min="0" step="0.01" value="${r.qty}" data-ssqty="${i}" style="width:74px"></td><td>${fmtNum(r.avg)}</td><td>${fmtNum(r.rate)}</td><td>${r.disc}</td><td>${r.gst}</td><td>${fmtNum(ssA(r).t)}</td><td><button type="button" class="si-remove-btn" data-ssdel="${i}">&times;</button></td></tr>`).join(''):empty(11,'No items added.');
+  $('ssRows').innerHTML=ss.rows.length?ss.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${kindLbl(itemKind(r.code,r.name,r.kind))}</td><td>${esc(r.unit)}</td>${(()=>{const it=item(r.code),lo=it&&it.qty<r.qty;return '<td'+(lo?' style="color:#c00;font-weight:600"':'')+'>'+(it?fmtNum(it.qty):'-')+'</td>';})()}<td><input type="number" min="0" step="0.01" value="${r.qty}" data-ssqty="${i}" style="width:74px"></td><td>${fmtNum(r.avg)}</td><td>${fmtNum(r.rate)}</td><td>${r.disc}</td><td>${r.gst}</td><td>${fmtNum(ssA(r).t)}</td><td><button type="button" class="si-remove-btn" data-ssdel="${i}">&times;</button></td></tr>`).join(''):empty(13,'No items added.');
+  const kq={book:0,copy:0,other:0}; ss.rows.forEach(r=>{kq[itemKind(r.code,r.name,r.kind)]+=r.qty;}); if($('ssKinds')) $('ssKinds').innerHTML='Books: <b>'+(+kq.book.toFixed(2))+'</b> &nbsp;|&nbsp; Copies: <b>'+(+kq.copy.toFixed(2))+'</b>'+(kq.other?' &nbsp;|&nbsp; Other: <b>'+(+kq.other.toFixed(2))+'</b>':'');
   const t=ssTot(); $('ssIV').textContent=fmtNum(t.iv); $('ssDS').textContent=fmtNum(t.ds); $('ssGS').textContent=fmtNum(t.gs); $('ssTT').textContent=fmtNum(t.tt);
   $('ssCmBody').innerHTML=ss.cm.length?ss.cm.map(c=>`<tr><td>${new Date(c.at).toLocaleString()}</td><td>${esc(c.user)}</td><td>${esc(c.level)}</td><td>${esc(c.text)}</td></tr>`).join(''):empty(4,'No comments.');
 }
 const ssCalc=()=>{$('ssAmt').value=fmtNum(ssA({qty:parseFloat($('ssQty').value)||0,rate:parseFloat($('ssRate').value)||0,disc:parseFloat($('ssDisc').value)||0,gst:parseFloat($('ssGst').value)||0}).t);};
-function ssFill(it){$('ssCode').value=it.code;$('ssDesc').value=it.name;$('ssUnit').value=it.unit;$('ssAv').value=fmtNum(it.qty);$('ssAvg').value=fmtNum(it.rate);const pf=priceFor(it.code,$('ssClass').value); $('ssRate').value=pf!=null?pf:(it.sale||it.rate); ssCalc();}
+function ssFill(it){$('ssKind').value=itemKind(it.code,it.name)==='copy'?'copy':'book'; $('ssCode').value=it.code;$('ssDesc').value=it.name;$('ssUnit').value=it.unit;$('ssAv').value=fmtNum(it.qty);$('ssAvg').value=fmtNum(it.rate);const pf=priceFor(it.code,$('ssClass').value); $('ssRate').value=pf!=null?pf:(it.sale||it.rate); ssCalc();}
 function ssLookup(){
   const id=$('ssSid').value.trim().toLowerCase(); if(!id) return;
   const st=stuList().find(x=>String(x.reg).toLowerCase()===id);
@@ -1872,7 +1901,79 @@ $('ssDesc').addEventListener('change',()=>{const v=$('ssDesc').value.trim().toLo
 ['ssQty','ssRate','ssDisc','ssGst'].forEach(i=>$(i).addEventListener('input',ssCalc));
 $('ssSid').addEventListener('change',ssLookup); $('ssChk').onclick=ssLookup;
 
+
+/* ---------- Book / Copy type + class-wise issue reports ---------- */
+function kindPl(k){return k==='copy'?'COPIES':k==='book'?'BOOKS':'OTHER';}
+function kindLbl(k){return k==='copy'?'Copy':k==='book'?'Book':'Other';}
+function itemKind(code,name,saved){
+  if(saved==='book'||saved==='copy') return saved;
+  const it=item(code)||{}, cat=String(it.category||'').toLowerCase(), nm=String(name||it.name||'').toLowerCase();
+  const nbRe=/note\s*-?\s*books?|\bcop(y|ies)\b/;
+  if(it.nbType||nbRe.test(cat)) return 'copy';
+  if(/\bbooks?\b/.test(cat)) return 'book';
+  if(nbRe.test(nm)) return 'copy';
+  if(/\bbooks?\b/.test(nm)) return 'book';
+  return 'other';
+}
+const normCls=c=>String(c||'').split(' - ')[0].trim()||'(no class)';
+const clsOrder=c=>{const i=CLASSES.indexOf(c); return i<0?999:i;};
+function classIssueData(from,to,force,o){
+  const ks=force, src=o.src, cs=o.cls, out=[], inR=d=>(!from||d>=from)&&d<=to;
+  if(src!=='si') S.ss.filter(d=>inR(d.date)).forEach(d=>d.rows.forEach(r=>out.push({cls:normCls(d.cls),kind:itemKind(r.code,r.name,r.kind),code:r.code,name:r.name,qty:r.qty,val:ssA(r).t,who:d.sid||d.name})));
+  if(src!=='ss') state.issues.filter(d=>inR(d.date)).forEach(d=>d.rows.forEach(r=>{const m=/^Student books - (.+)$/.exec(r.purpose||''); if(!m||!(r.issQty>0)) return; out.push({cls:normCls(m[1]),kind:itemKind(r.code,r.name),code:r.code,name:r.name,qty:r.issQty,val:r.issQty*r.issRate,who:d.to||''});}));
+  return out.filter(x=>(ks==='all'||(ks==='bc'?x.kind!=='other':x.kind===ks))&&(!cs||x.cls===cs));
+}
+
+function kindReport(kind,from,to,o){
+  const D=classIssueData(from,to,kind,o), F=x=>String(+(+x).toFixed(2)), M=fmtMoney, L=kind==='copy'?'Copy':'Book', LP=kind==='copy'?'COPIES':'BOOKS';
+  const classes=[...new Set(D.map(x=>x.cls))].sort((a,b)=>clsOrder(a)-clsOrder(b)||a.localeCompare(b));
+  const per=(from?from+' to ':'up to ')+to, lay=o.lay; let title,h,rows=[];
+  if(lay==='matrix'){
+    title=LP.charAt(0)+LP.slice(1).toLowerCase()+' Report - '+L.toLowerCase()+' x class (how many of each '+L.toLowerCase()+' given to each class) '+per;
+    h=['Code',L].concat(classes,['TOTAL']);
+    const items={}; D.forEach(x=>{const a=items[x.code]||(items[x.code]={code:x.code,name:x.name,by:{},q:0}); a.by[x.cls]=(a.by[x.cls]||0)+x.qty; a.q+=x.qty;});
+    Object.values(items).sort((a,b)=>a.name.localeCompare(b.name)).forEach(a=>rows.push([a.code,a.name].concat(classes.map(c=>a.by[c]?F(a.by[c]):''),[F(a.q)])));
+    if(rows.length){const ct=classes.map(c=>F(D.filter(x=>x.cls===c).reduce((s,x)=>s+x.qty,0))); rows.push(['','TOTAL '+LP].concat(ct,[F(D.reduce((s,x)=>s+x.qty,0))]));}
+  }else{
+    title=LP.charAt(0)+LP.slice(1).toLowerCase()+' Report - class-wise (which '+L.toLowerCase()+', how many) '+per;
+    h=['Class','Item Code',L,'Qty issued','Value'];
+    let gq=0,gv=0;
+    classes.forEach(c=>{
+      const agg={}; D.filter(x=>x.cls===c).forEach(x=>{const a=agg[x.code]||(agg[x.code]={code:x.code,name:x.name,q:0,v:0}); a.q+=x.qty; a.v+=x.val;});
+      const Ls=Object.values(agg).sort((a,b)=>a.name.localeCompare(b.name)); Ls.forEach(a=>rows.push([c,a.code,a.name,F(a.q),M(a.v)]));
+      const q=Ls.reduce((s,a)=>s+a.q,0), v=Ls.reduce((s,a)=>s+a.v,0); gq+=q; gv+=v; rows.push([c,'','TOTAL '+LP+' - '+c,F(q),M(v)]);
+    });
+    if(rows.length) rows.push(['ALL CLASSES','','GRAND TOTAL '+LP,F(gq),M(gv)]);
+  }
+  return {title,h,rows};
+}
 /* ---------- Class Book Sets (shared by Student Sale & Store Issue) ---------- */
+
+/* ---------- Student Sale: Books & Copies reports (one place) ---------- */
+let srLast=[];
+const srOpts=()=>({src:$('srSrc').value,cls:$('srCls').value,lay:$('srLay').value});
+function srFillCls(){const v=$('srCls').value; $('srCls').innerHTML='<option value="">All classes</option>'+cbAllClasses().map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join(''); $('srCls').value=v;}
+const srIsTot=x=>x.some(c=>/^(GRAND TOTAL|TOTAL)\b/.test(String(c)));
+function srRun(){
+  const from=$('srFrom').value, to=$('srTo').value||todayISO(), w=$('srWhat').value, o=srOpts();
+  srLast=(w==='both'?['book','copy']:[w]).map(k=>kindReport(k,from,to,o));
+  $('srOut').innerHTML=srLast.map(r=>`<h3 class="sec" style="margin-top:14px">${esc(r.title)}</h3><div class="ledger-wrap"><div class="table-scroll"><table><thead><tr>${r.h.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${r.rows.length?r.rows.map(x=>`<tr${srIsTot(x)?' style="font-weight:700"':''}>${x.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join(''):empty(r.h.length,'Is period ma koi issue nahi mila.')}</tbody></table></div></div>`).join('');
+}
+function srPrint(){
+  srRun(); const wide=srLast.some(r=>r.h.length>8), w=window.open('','_blank'); if(!w) return showToast('Allow pop-ups to print.');
+  const tbl=r=>`<h3>${esc(r.title)}</h3><table><thead><tr>${r.h.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${r.rows.length?r.rows.map(x=>`<tr${srIsTot(x)?' class="t"':''}>${x.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join(''):'<tr><td colspan="'+r.h.length+'">Is period ma koi issue nahi mila.</td></tr>'}</tbody></table>`;
+  w.document.write(`<!DOCTYPE html><html><head><title>Books & Copies Report</title><style>body{font-family:Georgia,serif;padding:14px}h3{margin:14px 0 4px;font-size:14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #888;padding:4px 6px;font-size:11px;text-align:left}th{background:#233C2C;color:#fff}tr{page-break-inside:avoid}tr.t td{font-weight:bold;background:#eee}${ARSLAN_CSS}@page{size:A4 ${wide?'landscape':'portrait'};margin:8mm}</style></head><body>${ARSLAN_HEAD}${srLast.map(tbl).join('')}</body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),400);
+}
+function srCsv(){
+  srRun(); const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"', out=[];
+  srLast.forEach(r=>{out.push(q(r.title)); out.push(r.h.map(q).join(',')); r.rows.forEach(x=>out.push(x.map(q).join(','))); out.push('');});
+  dl('books_copies_report.csv',out.join('\n'),'text/csv');
+}
+$('srRun').onclick=srRun; $('srPrint').onclick=srPrint; $('srCsv').onclick=srCsv;
+$('srPanel').addEventListener('toggle',()=>{if($('srPanel').open) srFillCls();});
+$('ssRepBtn').onclick=()=>{$('srPanel').open=true; srFillCls(); srRun(); $('srPanel').scrollIntoView({behavior:'smooth',block:'start'});};
+
 S.classBooks=S.classBooks||{};
 const cbAllClasses=()=>{const s=new Set(CLASSES); stuList().forEach(x=>{if(x.cls) s.add(x.cls);}); return [...s];};
 function cbFillSelects(){
@@ -1881,23 +1982,29 @@ function cbFillSelects(){
 }
 function cbDraw(){
   const c=$('cbClass').value, L=c?(S.classBooks[c]||[]):[];
-  $('cbRows').innerHTML=L.length?L.map((b,i)=>`<tr><td>${i+1}</td><td>${esc(b.code)}</td><td>${esc(b.name)}</td><td>${esc(b.unit||'')}</td><td><input type="number" min="1" step="1" value="${b.qty}" data-cbqty="${i}" style="width:70px"></td><td><button type="button" class="si-remove-btn" data-cbdel="${i}">&times;</button></td></tr>`).join(''):empty(6,c?'Is class ki abhi koi book add nahi hui.':'Pehle class select karen.');
+  const row=(b,n,i)=>{const it=item(b.code),lo=it&&it.qty<b.qty; return `<tr><td>${n}</td><td>${esc(b.code)}</td><td>${esc(b.name)}</td><td>${esc(b.unit||'')}</td><td${lo?' style="color:#c00;font-weight:600"':''}>${it?fmtNum(it.qty):'-'}</td><td><input type="number" min="1" step="1" value="${b.qty}" data-cbqty="${i}" style="width:70px"></td><td><button type="button" class="si-remove-btn" data-cbdel="${i}">&times;</button></td></tr>`;};
+  const bk=[],cp=[]; L.forEach((b,i)=>{(itemKind(b.code,b.name,b.kind)==='copy'?cp:bk).push([b,i]);});
+  const msg=c?'Abhi koi item add nahi hua.':'Pehle class select karen.';
+  $('cbRows').innerHTML=bk.length?bk.map((x,n)=>row(x[0],n+1,x[1])).join(''):empty(7,msg);
+  $('cbRows2').innerHTML=cp.length?cp.map((x,n)=>row(x[0],n+1,x[1])).join(''):empty(7,msg);
 }
 $('cbClass').addEventListener('change',cbDraw);
 $('cbPanel').addEventListener('toggle',()=>{if($('cbPanel').open){cbFillSelects();cbDraw();}});
-$('cbCode').addEventListener('change',()=>{const it=item($('cbCode').value); if(it){$('cbCode').value=it.code;$('cbDesc').value=it.name;}});
-$('cbDesc').addEventListener('change',()=>{const v=$('cbDesc').value.trim().toLowerCase(),it=state.items.find(x=>x.name.toLowerCase()===v); if(it){$('cbCode').value=it.code;$('cbDesc').value=it.name;}});
+$('cbCode').addEventListener('change',()=>{const it=item($('cbCode').value); if(it){$('cbCode').value=it.code;$('cbDesc').value=it.name;$('cbKind').value=itemKind(it.code,it.name)==='copy'?'copy':'book';}});
+$('cbDesc').addEventListener('change',()=>{const v=$('cbDesc').value.trim().toLowerCase(),it=state.items.find(x=>x.name.toLowerCase()===v); if(it){$('cbCode').value=it.code;$('cbDesc').value=it.name;$('cbKind').value=itemKind(it.code,it.name)==='copy'?'copy':'book';}});
 $('cbAdd').onclick=()=>{
   const c=$('cbClass').value; if(!c) return showToast('Pehle class select karen.');
   const v=$('cbDesc').value.trim().toLowerCase(), it=item($('cbCode').value)||state.items.find(x=>x.name.toLowerCase()===v);
-  if(!it) return showToast('Ye book stock list ma nahi mili. Pehle Stock Ledger ma item add karen.');
+  if(!it) return showToast('Ye item stock list ma nahi mila. Pehle Stock Ledger ma item add karen.');
   const q=parseFloat($('cbQty').value)||0; if(q<=0) return showToast('Qty likhen.');
   const L=S.classBooks[c]=S.classBooks[c]||[], ex=L.find(b=>b.code===it.code);
-  if(ex) ex.qty+=q; else L.push({code:it.code,name:it.name,unit:it.unit,qty:q});
+  if(ex) ex.qty+=q; else L.push({code:it.code,name:it.name,unit:it.unit,qty:q,kind:$('cbKind').value});
   sv(); ['cbCode','cbDesc'].forEach(i=>$(i).value=''); $('cbQty').value=1; cbFillSelects(); $('cbClass').value=c; cbDraw(); $('cbCode').focus();
 };
-$('cbRows').addEventListener('click',e=>{const b=e.target.closest('[data-cbdel]'); if(!b) return; const c=$('cbClass').value; S.classBooks[c].splice(+b.dataset.cbdel,1); sv(); cbFillSelects(); $('cbClass').value=c; cbDraw();});
-$('cbRows').addEventListener('change',e=>{const i=e.target.dataset.cbqty; if(i===undefined) return; const c=$('cbClass').value, q=parseFloat(e.target.value)||0; if(q>0){S.classBooks[c][+i].qty=q; sv();} cbDraw();});
+['cbRows','cbRows2'].forEach(id=>{
+  $(id).addEventListener('click',e=>{const b=e.target.closest('[data-cbdel]'); if(!b) return; const c=$('cbClass').value; S.classBooks[c].splice(+b.dataset.cbdel,1); sv(); cbFillSelects(); $('cbClass').value=c; cbDraw();});
+  $(id).addEventListener('change',e=>{const i=e.target.dataset.cbqty; if(i===undefined) return; const c=$('cbClass').value, q=parseFloat(e.target.value)||0; if(q>0){S.classBooks[c][+i].qty=q; sv();} cbDraw();});
+});
 $('cbCopy').onclick=()=>{
   const c=$('cbClass').value, f=$('cbFrom').value; if(!c||!f) return showToast('Class aur copy-from class dono select karen.');
   if(c===f) return showToast('Dono class same hain.');
@@ -1925,7 +2032,7 @@ function ssAutoBooks(force){
   if(ss.rows.length&&!confirm('Maujooda items hata kar '+st.cls+' ki books load karun?')) return;
   const rows=[],msg=[], cls=$('ssClass').value;
   set.forEach(b=>{const it=item(b.code); if(!it){msg.push(b.name+' (stock ma nahi)');return;} if(it.qty<b.qty) msg.push(it.name+' (stock '+fmtNum(it.qty)+')');
-    const pf=priceFor(it.code,cls); rows.push({code:it.code,name:it.name,unit:it.unit,qty:b.qty,avg:it.rate,rate:pf!=null?pf:(it.sale||it.rate),disc:0,gst:0});});
+    const pf=priceFor(it.code,cls); rows.push({kind:itemKind(it.code,it.name,b.kind),code:it.code,name:it.name,unit:it.unit,qty:b.qty,avg:it.rate,rate:pf!=null?pf:(it.sale||it.rate),disc:0,gst:0});});
   ss.rows=rows; ssDraw();
   showToast(rows.length+' books load ho gayi.'+(msg.length?' Dhyan: '+msg.join(', '):''));
 }
@@ -1963,7 +2070,7 @@ $('ssAdd').onclick=()=>{
   const q=parseFloat($('ssQty').value)||0; if(q<=0) return showToast('Enter quantity.');
   const back=editSS?editSS.rows.filter(o=>o.code===it.code).reduce((a,o)=>a+o.qty,0):0, used=ss.rows.filter(o=>o.code===it.code).reduce((a,o)=>a+o.qty,0);
   if(used+q>it.qty+back) return showToast('Only '+fmtNum(it.qty+back-used)+' available for '+it.name);
-  ss.rows.push({code:it.code,name:$('ssDesc').value.trim()||it.name,unit:$('ssUnit').value.trim()||it.unit,qty:q,avg:it.rate,rate:parseFloat($('ssRate').value)||0,disc:parseFloat($('ssDisc').value)||0,gst:parseFloat($('ssGst').value)||0});
+  ss.rows.push({kind:$('ssKind').value,code:it.code,name:$('ssDesc').value.trim()||it.name,unit:$('ssUnit').value.trim()||it.unit,qty:q,avg:it.rate,rate:parseFloat($('ssRate').value)||0,disc:parseFloat($('ssDisc').value)||0,gst:parseFloat($('ssGst').value)||0});
   ['ssCode','ssDesc','ssUnit','ssAv','ssQty','ssAvg','ssRate','ssDisc','ssGst','ssAmt'].forEach(i=>$(i).value='');
   ssDraw(); $('ssCode').focus();
 };
