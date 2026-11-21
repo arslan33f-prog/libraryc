@@ -256,7 +256,7 @@
   .app{position:relative;z-index:1;}
   .stat,.ledger-wrap,.si-card,.hist-item,.tab.active{background:rgba(255,253,248,.68) !important;}
   @media print{
-    @page{margin:12mm}
+    @page{size:A4;margin:10mm}
     *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .arslan-wm-main{display:flex;position:fixed;inset:0;z-index:0;align-items:center;justify-content:center;pointer-events:none;}
     .arslan-wm-main img{width:62%;max-width:520px;opacity:.07;border-radius:50%;}
@@ -285,7 +285,7 @@ function arslanApplyUI(){
   var ti=document.getElementById("brTitle"); if(ti) ti.value=ARSLAN_TITLE_RAW;
 }
 const ARSLAN_CSS=`
-@page{margin:12mm}
+@page{size:A4;margin:8mm}
 *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .arslan-wm{position:fixed;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
 .arslan-wm img{width:62%;max-width:520px;opacity:.07;border-radius:50%}
@@ -529,6 +529,21 @@ arslanLoad();
       <button class="btn ghost" id="ssList" type="button">List</button>
       <button class="btn ghost" id="ssPrint" type="button">Print</button>
     </div>
+    <details id="cbPanel" style="margin:4px 0 12px;background:rgba(255,253,248,.7);border:1px solid var(--rule);padding:8px 12px">
+      <summary style="cursor:pointer;font-weight:600">Class Book Sets &mdash; har class ki books ek hi bar add karen</summary>
+      <div class="si-header" style="margin-top:10px">
+        <div class="si-field"><label>Class</label><select id="cbClass"></select></div>
+        <div class="si-field"><label>Item Code</label><input type="text" id="cbCode" list="itemCodeList"></div>
+        <div class="si-field"><label>Book / Description</label><input type="text" id="cbDesc" list="itemNameList"></div>
+        <div class="si-field"><label>Qty</label><input type="number" id="cbQty" min="1" step="1" value="1" style="width:80px"></div>
+        <div class="si-field"><label>&nbsp;</label><button type="button" class="btn in" id="cbAdd">&#10003; Add to class</button></div>
+        <div class="si-field"><label>Copy books from class</label><div style="display:flex;gap:6px"><select id="cbFrom"></select><button type="button" class="btn ghost" id="cbCopy">Copy</button></div></div>
+      </div>
+      <div class="ledger-wrap"><div class="table-scroll"><table>
+        <thead><tr><th>Sr</th><th>Item Code</th><th>Book</th><th>Unit</th><th>Qty</th><th></th></tr></thead>
+        <tbody id="cbRows"></tbody></table></div></div>
+      <p class="note" style="margin:6px 0 0">Class select karen, books add karen. Phir Student Sale ya Store Issue ma student ka naam likhte hi us class ki sari books khud a jayengi; jo nahi chahiye unhe &times; se delete karen.</p>
+    </details>
     <div id="ssListPanel" style="display:none">
       <div class="toolbar"><input type="text" id="ssSearch" placeholder="Search SS no, student ID or name&hellip;"></div>
       <div class="ledger-wrap"><div class="table-scroll"><table>
@@ -543,7 +558,7 @@ arslanLoad();
       <div class="si-field"><label>SS No</label><input type="text" id="ssNo" value="(auto)" readonly></div>
       <div class="si-field"><label>Allocation Number</label><input type="text" id="ssAlloc"></div>
       <div class="si-field"><label>Student ID (Reg No) <button type="button" class="btn ghost" id="ssChk" style="padding:1px 8px">&#10003;</button></label><input type="text" id="ssSid"></div>
-      <div class="si-field"><label>Student Name</label><input type="text" id="ssName" readonly></div>
+      <div class="si-field"><label>Student Name (type to search)</label><input type="text" id="ssName" list="ssNameList" placeholder="Type student name&hellip;" autocomplete="off"><datalist id="ssNameList"></datalist></div>
       <div class="si-field"><label>Father</label><input type="text" id="ssFather" readonly></div>
       <div class="si-field"><label>House</label><input type="text" id="ssHouse" readonly></div>
       <div class="si-field"><label>Status</label><input type="text" id="ssStatus" readonly></div>
@@ -563,6 +578,7 @@ arslanLoad();
       <div class="si-field"><label>Amount</label><input type="text" id="ssAmt" readonly></div>
       <div class="si-field"><label>&nbsp;</label><button type="button" class="btn in" id="ssAdd">&#10003; Add</button></div>
     </div>
+    <p style="margin:6px 0"><button type="button" class="btn ghost" id="ssLoadBooks">Load class books</button> &nbsp; <a href="#" id="ssDelAll" style="color:#00008b;font-weight:600">Delete All</a></p>
     <div class="ledger-wrap"><div class="table-scroll"><table>
       <thead><tr><th>Sr No</th><th>Item Code</th><th>Description</th><th>Unit</th><th>Quantity</th><th>Avg. Rate</th><th>Rate</th><th>Discount%</th><th>GST%</th><th>Amount</th><th></th></tr></thead>
       <tbody id="ssRows"></tbody></table></div></div>
@@ -1795,7 +1811,7 @@ let ss={rows:[],cm:[]}, editSS=null;
 const ssA=r=>{const a=r.qty*r.rate,d=a*r.disc/100,g=(a-d)*r.gst/100;return {a,d,g,t:a-d+g};};
 function ssTot(){const t={iv:0,ds:0,gs:0,tt:0};ss.rows.forEach(r=>{const x=ssA(r);t.iv+=x.a;t.ds+=x.d;t.gs+=x.g;t.tt+=x.t;});return t;}
 function ssDraw(){
-  $('ssRows').innerHTML=ss.rows.length?ss.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.unit)}</td><td>${fmtNum(r.qty)}</td><td>${fmtNum(r.avg)}</td><td>${fmtNum(r.rate)}</td><td>${r.disc}</td><td>${r.gst}</td><td>${fmtNum(ssA(r).t)}</td><td><button type="button" class="si-remove-btn" data-ssdel="${i}">&times;</button></td></tr>`).join(''):empty(11,'No items added.');
+  $('ssRows').innerHTML=ss.rows.length?ss.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.unit)}</td><td><input type="number" min="0" step="0.01" value="${r.qty}" data-ssqty="${i}" style="width:74px"></td><td>${fmtNum(r.avg)}</td><td>${fmtNum(r.rate)}</td><td>${r.disc}</td><td>${r.gst}</td><td>${fmtNum(ssA(r).t)}</td><td><button type="button" class="si-remove-btn" data-ssdel="${i}">&times;</button></td></tr>`).join(''):empty(11,'No items added.');
   const t=ssTot(); $('ssIV').textContent=fmtNum(t.iv); $('ssDS').textContent=fmtNum(t.ds); $('ssGS').textContent=fmtNum(t.gs); $('ssTT').textContent=fmtNum(t.tt);
   $('ssCmBody').innerHTML=ss.cm.length?ss.cm.map(c=>`<tr><td>${new Date(c.at).toLocaleString()}</td><td>${esc(c.user)}</td><td>${esc(c.level)}</td><td>${esc(c.text)}</td></tr>`).join(''):empty(4,'No comments.');
 }
@@ -1806,6 +1822,7 @@ function ssLookup(){
   const st=stuList().find(x=>String(x.reg).toLowerCase()===id);
   if(!st){['ssName','ssFather','ssHouse','ssStatus','ssClass'].forEach(i=>$(i).value='');return showToast('Student ID not found in Students tab.');}
   $('ssName').value=st.name; $('ssFather').value=st.father||''; $('ssHouse').value=st.house||''; $('ssStatus').value='Active'; $('ssClass').value=st.cls+(st.sec?' - '+st.sec:'');
+  ssAutoBooks(false);
 }
 function ssRec(no){
   const t=ssTot();
@@ -1814,12 +1831,12 @@ function ssRec(no){
 function ssReset(){
   ss={rows:[],cm:[]}; editSS=null;
   ['ssAlloc','ssSid','ssName','ssFather','ssHouse','ssStatus','ssClass','ssR1','ssR2','ssR3','ssCm','ssCode','ssDesc','ssUnit','ssAv','ssQty','ssAvg','ssRate','ssDisc','ssGst','ssAmt'].forEach(i=>$(i).value='');
-  $('ssDate').value=todayISO(); $('ssNo').value='(auto)'; $('ssCharge').checked=true; $('ssBS').checked=false; $('ssHPT').checked=false;
+  try{stuFillNames();cbFillSelects();}catch(e){} $('ssDate').value=todayISO(); $('ssNo').value='(auto)'; $('ssCharge').checked=true; $('ssBS').checked=false; $('ssHPT').checked=false;
   $('ssMeta').innerHTML='Created By: -<br>Last Updated: -'; ssDraw();
 }
 function ssSave(){
   if(!ss.rows.length) return showToast('Add at least one item.');
-  if(!$('ssName').value) return showToast('Enter a valid Student ID first.');
+  if(!$('ssSid').value.trim()||!$('ssName').value) return showToast('Pehle student ka naam ya ID select karen.');
   const need={}; ss.rows.forEach(r=>need[r.code]=(need[r.code]||0)+r.qty);
   for(const c in need){const it=item(c),back=editSS?editSS.rows.filter(o=>o.code===c).reduce((a,o)=>a+o.qty,0):0; if(!it||need[c]>it.qty+back) return showToast('Not enough stock for '+(it?it.name:c));}
   let no;
@@ -1854,6 +1871,93 @@ $('ssCode').addEventListener('change',()=>{const it=item($('ssCode').value); if(
 $('ssDesc').addEventListener('change',()=>{const v=$('ssDesc').value.trim().toLowerCase(),it=state.items.find(x=>x.name.toLowerCase()===v); if(it) ssFill(it);});
 ['ssQty','ssRate','ssDisc','ssGst'].forEach(i=>$(i).addEventListener('input',ssCalc));
 $('ssSid').addEventListener('change',ssLookup); $('ssChk').onclick=ssLookup;
+
+/* ---------- Class Book Sets (shared by Student Sale & Store Issue) ---------- */
+S.classBooks=S.classBooks||{};
+const cbAllClasses=()=>{const s=new Set(CLASSES); stuList().forEach(x=>{if(x.cls) s.add(x.cls);}); return [...s];};
+function cbFillSelects(){
+  const o='<option value="">-- select --</option>'+cbAllClasses().map(c=>`<option value="${esc(c)}">${esc(c)}${(S.classBooks[c]||[]).length?' ('+S.classBooks[c].length+')':''}</option>`).join('');
+  const cur=$('cbClass').value, cf=$('cbFrom').value; $('cbClass').innerHTML=o; $('cbFrom').innerHTML=o; $('cbClass').value=cur; $('cbFrom').value=cf;
+}
+function cbDraw(){
+  const c=$('cbClass').value, L=c?(S.classBooks[c]||[]):[];
+  $('cbRows').innerHTML=L.length?L.map((b,i)=>`<tr><td>${i+1}</td><td>${esc(b.code)}</td><td>${esc(b.name)}</td><td>${esc(b.unit||'')}</td><td><input type="number" min="1" step="1" value="${b.qty}" data-cbqty="${i}" style="width:70px"></td><td><button type="button" class="si-remove-btn" data-cbdel="${i}">&times;</button></td></tr>`).join(''):empty(6,c?'Is class ki abhi koi book add nahi hui.':'Pehle class select karen.');
+}
+$('cbClass').addEventListener('change',cbDraw);
+$('cbPanel').addEventListener('toggle',()=>{if($('cbPanel').open){cbFillSelects();cbDraw();}});
+$('cbCode').addEventListener('change',()=>{const it=item($('cbCode').value); if(it){$('cbCode').value=it.code;$('cbDesc').value=it.name;}});
+$('cbDesc').addEventListener('change',()=>{const v=$('cbDesc').value.trim().toLowerCase(),it=state.items.find(x=>x.name.toLowerCase()===v); if(it){$('cbCode').value=it.code;$('cbDesc').value=it.name;}});
+$('cbAdd').onclick=()=>{
+  const c=$('cbClass').value; if(!c) return showToast('Pehle class select karen.');
+  const v=$('cbDesc').value.trim().toLowerCase(), it=item($('cbCode').value)||state.items.find(x=>x.name.toLowerCase()===v);
+  if(!it) return showToast('Ye book stock list ma nahi mili. Pehle Stock Ledger ma item add karen.');
+  const q=parseFloat($('cbQty').value)||0; if(q<=0) return showToast('Qty likhen.');
+  const L=S.classBooks[c]=S.classBooks[c]||[], ex=L.find(b=>b.code===it.code);
+  if(ex) ex.qty+=q; else L.push({code:it.code,name:it.name,unit:it.unit,qty:q});
+  sv(); ['cbCode','cbDesc'].forEach(i=>$(i).value=''); $('cbQty').value=1; cbFillSelects(); $('cbClass').value=c; cbDraw(); $('cbCode').focus();
+};
+$('cbRows').addEventListener('click',e=>{const b=e.target.closest('[data-cbdel]'); if(!b) return; const c=$('cbClass').value; S.classBooks[c].splice(+b.dataset.cbdel,1); sv(); cbFillSelects(); $('cbClass').value=c; cbDraw();});
+$('cbRows').addEventListener('change',e=>{const i=e.target.dataset.cbqty; if(i===undefined) return; const c=$('cbClass').value, q=parseFloat(e.target.value)||0; if(q>0){S.classBooks[c][+i].qty=q; sv();} cbDraw();});
+$('cbCopy').onclick=()=>{
+  const c=$('cbClass').value, f=$('cbFrom').value; if(!c||!f) return showToast('Class aur copy-from class dono select karen.');
+  if(c===f) return showToast('Dono class same hain.');
+  const src=S.classBooks[f]||[]; if(!src.length) return showToast('Us class ma koi book nahi hai.');
+  if((S.classBooks[c]||[]).length && !confirm('Is class ki maujooda books replace ho jayengi. Theek hai?')) return;
+  S.classBooks[c]=src.map(b=>({...b})); sv(); cbFillSelects(); $('cbClass').value=c; cbDraw(); showToast(src.length+' books copy ho gayi.');
+};
+
+/* student search by name */
+const stuLabel=s=>s.name+' ('+s.reg+')';
+function stuFillNames(){ $('ssNameList').innerHTML=stuList().map(s=>`<option value="${esc(stuLabel(s))}">`).join(''); }
+function stuFind(v){
+  v=String(v||'').trim().toLowerCase(); if(!v) return {st:null,n:0};
+  const L=stuList(); let m=L.filter(s=>stuLabel(s).toLowerCase()===v);
+  if(!m.length) m=L.filter(s=>String(s.name).toLowerCase()===v);
+  if(!m.length) m=L.filter(s=>String(s.name).toLowerCase().includes(v));
+  return {st:m.length===1?m[0]:null,n:m.length};
+}
+function ssBooksFor(cls){return (S.classBooks||{})[cls]||[];}
+function ssAutoBooks(force){
+  const id=$('ssSid').value.trim().toLowerCase(), st=stuList().find(x=>String(x.reg).toLowerCase()===id); if(!st) return;
+  const set=ssBooksFor(st.cls);
+  if(!set.length) return showToast(st.cls+' ki books abhi set nahi hain. "Class Book Sets" ma add karen.');
+  if(editSS&&!force) return;
+  if(ss.rows.length&&!confirm('Maujooda items hata kar '+st.cls+' ki books load karun?')) return;
+  const rows=[],msg=[], cls=$('ssClass').value;
+  set.forEach(b=>{const it=item(b.code); if(!it){msg.push(b.name+' (stock ma nahi)');return;} if(it.qty<b.qty) msg.push(it.name+' (stock '+fmtNum(it.qty)+')');
+    const pf=priceFor(it.code,cls); rows.push({code:it.code,name:it.name,unit:it.unit,qty:b.qty,avg:it.rate,rate:pf!=null?pf:(it.sale||it.rate),disc:0,gst:0});});
+  ss.rows=rows; ssDraw();
+  showToast(rows.length+' books load ho gayi.'+(msg.length?' Dhyan: '+msg.join(', '):''));
+}
+$('ssName').addEventListener('focus',stuFillNames);
+$('ssName').addEventListener('change',()=>{
+  const v=$('ssName').value; if(!v.trim()) return;
+  const r=stuFind(v);
+  if(r.st&&String($('ssSid').value)===String(r.st.reg)&&ss.rows.length){ $('ssName').value=r.st.name; return; }
+  if(r.st){ $('ssSid').value=r.st.reg; ssLookup(); }
+  else{ ['ssSid','ssFather','ssHouse','ssStatus','ssClass'].forEach(i=>$(i).value=''); showToast(r.n>1?'Is naam ke kayi students hain. List se Name (Reg No) select karen.':'Student nahi mila.'); }
+});
+$('ssLoadBooks').onclick=()=>{ if(!$('ssSid').value.trim()) return showToast('Pehle student ka naam ya ID select karen.'); ssAutoBooks(true); };
+$('ssDelAll').onclick=e=>{e.preventDefault(); if(ss.rows.length&&confirm('Sari items hata dun?')){ss.rows=[];ssDraw();}};
+$('ssRows').addEventListener('change',e=>{const i=e.target.dataset.ssqty; if(i===undefined) return; const q=parseFloat(e.target.value)||0; if(q>0) ss.rows[+i].qty=q; ssDraw();});
+
+/* Store Issue: issued-to a student => class books */
+const _fillTo=fillTo;
+function fillTo2(){ _fillTo(); const base=$('siToList').innerHTML; $('siToList').innerHTML=base+stuList().map(s=>`<option value="${esc(stuLabel(s))}">`).join(''); }
+$('siTo').addEventListener('focus',fillTo2);
+$('siTo').addEventListener('change',()=>{
+  const r=stuFind($('siTo').value); if(!r.st) return;
+  const st=r.st, set=ssBooksFor(st.cls);
+  $('siTo').value=st.name+' ('+st.cls+')';
+  if(!set.length) return showToast(st.cls+' ki books abhi set nahi hain. Student Sale tab ma "Class Book Sets" ma add karen.');
+  if(siRows.some(x=>x.code||x.name)&&!confirm('Maujooda rows hata kar '+st.cls+' ki books load karun?')) return;
+  const rows=[],msg=[];
+  set.forEach(b=>{const it=item(b.code); if(!it){msg.push(b.name+' (stock ma nahi)');return;} if(it.qty<b.qty) msg.push(it.name+' (stock '+fmtNum(it.qty)+')');
+    rows.push(Object.assign(newBlankSiRow(),{code:it.code,name:it.name,unit:it.unit,avail:it.qty,issQty:b.qty,issRate:it.rate,total:b.qty*it.rate,purpose:'Student books - '+st.cls}));});
+  rows.push(newBlankSiRow()); siRows=rows; renderSiRows();
+  showToast((rows.length-1)+' books load ho gayi.'+(msg.length?' Dhyan: '+msg.join(', '):''));
+});
+cbFillSelects(); cbDraw();
 $('ssAdd').onclick=()=>{
   const it=item($('ssCode').value); if(!it) return showToast('Enter a valid item code.');
   const q=parseFloat($('ssQty').value)||0; if(q<=0) return showToast('Enter quantity.');
@@ -2021,7 +2125,7 @@ function poPrintPR(r){
   const f=(l,v)=>`<div class="f"><span class="k">${l}:</span><span class="v">${esc(v||'')}</span></div>`;
   const ap=(l)=>`<div class="ar"><div class="al">${l}: <span class="ln"></span></div><div class="ad">Date: <span class="ln"></span></div></div>`;
   w.document.write(`<!DOCTYPE html><html><head><title>${esc(r.prNo||'Purchase Requisition')}</title><style>
-  body{font-family:Georgia,serif;padding:14px 20px;color:#111}
+  html,body{margin:0;padding:0}body{font-family:Georgia,serif;color:#111}#pg{width:194mm;margin:0 auto}
   .bar{height:9px;background:#444}
   .logo{text-align:center;margin:8px 0 4px}.logo img{width:96px;height:96px;border-radius:10px}
   .brand{text-align:center;font:bold 15px Arial,sans-serif;color:#0a2a43;letter-spacing:.5px;margin-bottom:6px}
@@ -2036,7 +2140,7 @@ function poPrintPR(r){
   .ln{flex:1;border-bottom:1.5px solid #333;margin-left:6px;height:14px}
   .cm{margin-top:14px;font-weight:bold;font-size:13px}.cmt{border-bottom:1.5px solid #333;min-height:26px;font-weight:normal;margin-top:6px;padding-left:4px}
   ${ARSLAN_CSS}
-  </style></head><body><div class="arslan-wm"><img src="${ARSLAN_LOGO}"></div>
+  </style></head><body><div class="arslan-wm"><img src="${ARSLAN_LOGO}"></div><div id="pg">
   <div class="bar"></div>
   <div class="logo"><img src="${ARSLAN_LOGO}"></div><div class="brand">${ARSLAN_TITLE}</div>
   <div class="bar" style="height:6px"></div>
@@ -2046,8 +2150,9 @@ function poPrintPR(r){
   <table><thead><tr><th style="width:6%">Sr.#</th><th style="width:9%">Item Code</th><th>Description</th><th style="width:7%">Unit</th><th style="width:9%">Qty Demand</th><th style="width:10%">Stock in Hand</th><th style="width:10%">Est. Cost</th><th style="width:18%">Remarks</th></tr></thead><tbody>${rows}${blank}</tbody></table>
   <div class="ah">Approvals</div>${ap('Department Phase Leader/Coordinator')}${ap('Store Verification')}${ap('Principal/V.Principal ')}${ap('Director/s')}
   <div class="cm">Comments / Remarks:<div class="cmt">${esc(r.prComments||'')}</div><div class="cmt"></div></div>
-  </body></html>`);
-  w.document.close(); setTimeout(()=>w.print(),400);
+  </div></body></html>`);
+  w.document.close();
+  setTimeout(()=>{try{const pg=w.document.getElementById('pg'),maxH=281*3.7795,hh=pg.scrollHeight; if(hh>maxH) pg.style.zoom=(maxH/hh*0.97).toFixed(3);}catch(e){} w.print();},500);
 }
 $('poCode').addEventListener('change',()=>{const it=item($('poCode').value); if(it){$('poCode').value=it.code;$('poDesc').value=it.name;$('poUnit').value=it.unit;$('poAv').value=fmtNum(it.qty);$('poRate').value=it.rate;poCalc();}});
 $('poDesc').addEventListener('change',()=>{const v=$('poDesc').value.trim().toLowerCase(),it=state.items.find(x=>x.name.toLowerCase()===v); if(it){$('poCode').value=it.code;$('poDesc').value=it.name;$('poUnit').value=it.unit;$('poAv').value=fmtNum(it.qty);$('poRate').value=it.rate;poCalc();}});
